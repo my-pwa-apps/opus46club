@@ -1,0 +1,260 @@
+/* ===== RESET & BASE ===== */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #000;
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    color: #fff;
+    -webkit-font-smoothing: antialiased;
+}
+
+canvas#club-canvas {
+    display: block;
+    width: 100%; height: 100%;
+    position: fixed; top: 0; left: 0;
+}
+
+/* ===== LOADING SCREEN ===== */
+#loading-screen {
+    position: fixed; inset: 0;
+    z-index: 1000;
+    background: #0a0a0a;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.8s ease;
+}
+#loading-screen.fade-out { opacity: 0; pointer-events: none; }
+
+.loader-content { text-align: center; }
+
+.club-name {
+    font-size: 4rem;
+    font-weight: 900;
+    letter-spacing: 0.3em;
+    background: linear-gradient(135deg, #ff00ff, #00ffff, #ff00ff);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradientShift 3s ease infinite;
+}
+
+.club-tagline {
+    font-size: 0.9rem;
+    letter-spacing: 0.6em;
+    color: #888;
+    margin-top: 0.5rem;
+}
+
+.loader-bar {
+    width: 300px; height: 3px;
+    background: #222;
+    margin: 2rem auto;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.loader-fill {
+    width: 0%; height: 100%;
+    background: linear-gradient(90deg, #ff00ff, #00ffff);
+    transition: width 0.3s ease;
+}
+
+.loader-text {
+    font-size: 0.75rem;
+    color: #666;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+}
+
+@keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+/* ===== UI OVERLAY ===== */
+#ui-overlay {
+    position: fixed; inset: 0;
+    z-index: 100;
+    pointer-events: none;
+}
+#ui-overlay * { pointer-events: auto; }
+
+#hud-top {
+    position: absolute; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1rem 1.5rem;
+    background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 100%);
+}
+
+.club-logo {
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: 0.25em;
+    background: linear-gradient(90deg, #ff00ff, #00ffff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+#clock {
+    font-size: 0.8rem;
+    color: #aaa;
+    letter-spacing: 0.1em;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ===== CONTROLS PANEL ===== */
+#controls-panel {
+    position: absolute;
+    top: 50%; left: 1rem;
+    transform: translateY(-50%);
+}
+
+.icon-btn {
+    width: 44px; height: 44px;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 50%;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    font-size: 1.2rem;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    transition: all 0.2s;
+}
+.icon-btn:hover { border-color: #ff00ff; box-shadow: 0 0 12px rgba(255,0,255,0.3); }
+
+#controls-drawer {
+    position: absolute;
+    left: 54px; top: 50%;
+    transform: translateY(-50%);
+    width: 240px;
+    background: rgba(10,10,10,0.92);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 1.2rem;
+    backdrop-filter: blur(20px);
+    transition: all 0.3s ease;
+}
+#controls-drawer.hidden { opacity: 0; pointer-events: none; transform: translateY(-50%) translateX(-10px); }
+
+#controls-drawer h3 {
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    color: #888;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding-bottom: 0.5rem;
+}
+
+.control-group {
+    margin-bottom: 0.9rem;
+}
+.control-group label {
+    display: block;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: #aaa;
+    text-transform: uppercase;
+    margin-bottom: 0.3rem;
+}
+
+.control-group input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 4px;
+    background: #333;
+    border-radius: 2px;
+    outline: none;
+}
+.control-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    background: #ff00ff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(255,0,255,0.5);
+}
+
+.control-group select {
+    width: 100%;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: #ddd;
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    outline: none;
+    cursor: pointer;
+}
+.control-group select:focus { border-color: #ff00ff; }
+
+.action-btn {
+    width: 100%;
+    padding: 0.6rem;
+    background: linear-gradient(135deg, #ff00ff, #ff0066);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    margin-top: 0.5rem;
+    transition: all 0.15s;
+}
+.action-btn:hover { transform: scale(1.03); box-shadow: 0 0 20px rgba(255,0,255,0.4); }
+.action-btn:active { transform: scale(0.97); }
+
+/* ===== VR BUTTON ===== */
+#vr-container {
+    position: absolute;
+    bottom: 1.5rem;
+    left: 50%; transform: translateX(-50%);
+}
+
+.vr-btn {
+    padding: 0.8rem 2.5rem;
+    background: linear-gradient(135deg, rgba(0,255,255,0.15), rgba(255,0,255,0.15));
+    border: 1px solid rgba(0,255,255,0.4);
+    border-radius: 30px;
+    color: #0ff;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s;
+}
+.vr-btn:hover {
+    background: linear-gradient(135deg, rgba(0,255,255,0.3), rgba(255,0,255,0.3));
+    box-shadow: 0 0 30px rgba(0,255,255,0.3);
+    transform: scale(1.05);
+}
+
+/* ===== AUDIO UPLOAD ===== */
+#audio-upload {
+    position: absolute;
+    bottom: 1.5rem; right: 1.5rem;
+}
+
+.upload-label {
+    padding: 0.55rem 1.2rem;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.1em;
+}
+.upload-label:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: #ff00ff;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 600px) {
+    .club-name { font-size: 2.2rem; }
+    #controls-drawer { width: 200px; }
+    .vr-btn { padding: 0.6rem 1.5rem; font-size: 0.75rem; }
+}

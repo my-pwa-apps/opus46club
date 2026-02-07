@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>OPUS 46 — Virtual Club</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+    <!-- Loading screen -->
+    <div id="loading-screen">
+        <div class="loader-content">
+            <h1 class="club-name">OPUS 46</h1>
+            <p class="club-tagline">VIRTUAL CLUB EXPERIENCE</p>
+            <div class="loader-bar">
+                <div class="loader-fill" id="loader-fill"></div>
+            </div>
+            <p class="loader-text" id="loader-text">Initializing...</p>
+        </div>
+    </div>
+
+    <!-- UI Overlay -->
+    <div id="ui-overlay" style="display:none;">
+        <div id="hud-top">
+            <span class="club-logo">OPUS 46</span>
+            <span id="clock"></span>
+        </div>
+
+        <div id="controls-panel">
+            <button id="btn-toggle-controls" class="icon-btn" title="Controls">&#9881;</button>
+            <div id="controls-drawer" class="hidden">
+                <h3>DJ CONTROLS</h3>
+                <div class="control-group">
+                    <label>Master Volume</label>
+                    <input type="range" id="master-volume" min="0" max="1" step="0.01" value="0.7">
+                </div>
+                <div class="control-group">
+                    <label>BPM</label>
+                    <input type="range" id="bpm-slider" min="60" max="180" step="1" value="128">
+                    <span id="bpm-display">128</span>
+                </div>
+                <div class="control-group">
+                    <label>Lighting Preset</label>
+                    <select id="lighting-preset">
+                        <option value="club">Club Night</option>
+                        <option value="rave">Rave</option>
+                        <option value="chill">Chill Lounge</option>
+                        <option value="strobe">Strobe Madness</option>
+                        <option value="laser">Laser Show</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Fog Density</label>
+                    <input type="range" id="fog-density" min="0" max="1" step="0.01" value="0.4">
+                </div>
+                <div class="control-group">
+                    <label>Visuals</label>
+                    <select id="visual-mode">
+                        <option value="wave">Waveform</option>
+                        <option value="bars">Spectrum Bars</option>
+                        <option value="tunnel">Tunnel</option>
+                        <option value="scope">Oscilloscope</option>
+                        <option value="logo">Logo</option>
+                        <option value="strobe">Strobe</option>
+                        <option value="grid">Grid</option>
+                        <option value="noise">Noise</option>
+                    </select>
+                </div>
+                <button id="btn-drop" class="action-btn">DROP!</button>
+            </div>
+        </div>
+
+        <div id="vr-container">
+            <button id="btn-vr" class="vr-btn" style="display:none;">ENTER VR</button>
+        </div>
+
+        <div id="audio-upload">
+            <label for="audio-file" class="upload-label">&#127925; Load Track</label>
+            <input type="file" id="audio-file" accept="audio/*" style="display:none;">
+        </div>
+    </div>
+
+    <canvas id="club-canvas"></canvas>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
