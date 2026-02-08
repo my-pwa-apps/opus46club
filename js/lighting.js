@@ -366,13 +366,16 @@ export class LightingSystem {
 
     /* ── Gobo Projectors ──────────────────────────────────────────── */
     _buildGoboProjectors() {
+        // Each gobo has: a fixture position on the truss, a floor target, and a
+        // volumetric beam cone from fixture to floor.  The floor pattern is the
+        // gobo image; the cone is the visible light beam in haze.
         const configs = [
-            { p: [-4,0.005,-4], s: 3.2, type: 'breakup' },
-            { p: [ 4,0.005,-4], s: 3.2, type: 'star' },
-            { p: [ 0,0.005, 2], s: 4.0, type: 'ring' },
-            { p: [-5,0.005, 5], s: 2.8, type: 'breakup' },
-            { p: [ 5,0.005, 5], s: 2.8, type: 'star' },
-            { p: [ 0,0.005,-8], s: 3.5, type: 'ring' },
+            { floor: [-4, 0.005, -4],  fix: [-4, 4.15, -4],  s: 3.2, type: 'breakup' },
+            { floor: [ 4, 0.005, -4],  fix: [ 4, 4.15, -4],  s: 3.2, type: 'star' },
+            { floor: [ 0, 0.005,  2],  fix: [ 0, 4.15,  2],  s: 4.0, type: 'ring' },
+            { floor: [-5, 0.005,  5],  fix: [-5, 4.15,  5],  s: 2.8, type: 'breakup' },
+            { floor: [ 5, 0.005,  5],  fix: [ 5, 4.15,  5],  s: 2.8, type: 'star' },
+            { floor: [ 0, 0.005, -8],  fix: [ 0, 4.15, -8],  s: 3.5, type: 'ring' },
         ];
 
         const baseMat = () => new THREE.MeshBasicMaterial({
@@ -380,10 +383,21 @@ export class LightingSystem {
             depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
         });
 
+        const beamMat = () => new THREE.MeshBasicMaterial({
+            color: 0xffffff, transparent: true, opacity: 0.012,
+            depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+            fog: true,
+        });
+
+        // Housing material (shared)
+        const housingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.4, metalness: 0.8 });
+
         for (let gi = 0; gi < configs.length; gi++) {
             const c = configs[gi];
+
+            // ── Floor pattern group ──
             const g = new THREE.Group();
-            g.position.set(...c.p);
+            g.position.set(...c.floor);
 
             if (c.type === 'breakup') {
                 for (let d = 0; d < 18; d++) {
@@ -417,7 +431,38 @@ export class LightingSystem {
             }
 
             this.group.add(g);
-            this.goboGroups.push({ group: g, config: c, idx: gi });
+
+            // ── Fixture housing on truss ──
+            const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.1, 8), housingMat);
+            housing.position.set(c.fix[0], c.fix[1], c.fix[2]);
+            this.group.add(housing);
+
+            // Lens glow
+            const lens = new THREE.Mesh(
+                new THREE.CircleGeometry(0.055, 12),
+                new THREE.MeshBasicMaterial({
+                    color: 0xffffff, transparent: true, opacity: 0.15,
+                    depthWrite: false, blending: THREE.AdditiveBlending,
+                })
+            );
+            lens.position.set(c.fix[0], c.fix[1] - 0.06, c.fix[2]);
+            lens.rotation.x = Math.PI / 2;
+            this.group.add(lens);
+
+            // ── Volumetric beam cone from fixture to floor ──
+            // Height = fixture Y - floor Y
+            const beamH = c.fix[1] - c.floor[1];
+            // Top radius (at fixture lens) is small; bottom radius matches gobo spread
+            const topR = 0.06;
+            const botR = c.s * 0.5;  // half the gobo spread diameter
+            const coneGeo = new THREE.CylinderGeometry(topR, botR, beamH, 16, 1, true);
+            const cone = new THREE.Mesh(coneGeo, beamMat());
+            // Position at midpoint between fixture and floor
+            cone.position.set(c.fix[0], c.floor[1] + beamH / 2, c.fix[2]);
+            cone.renderOrder = 10;
+            this.group.add(cone);
+
+            this.goboGroups.push({ group: g, config: c, idx: gi, cone, lens });
         }
     }
 
@@ -809,12 +854,27 @@ export class LightingSystem {
 
             // Gobos pulse with mids energy
             const midsPulse = 0.7 + this._mids * 1.3;  // 0.7–2.0
+            const beamAlpha = p.goboAlpha * (b.is ? 2 : 1) * midsPulse;
+
+            // Update floor pattern
             gobo.group.traverse(ch => {
                 if (ch.isMesh && ch.material.transparent) {
                     ch.material.color.copy(col);
-                    ch.material.opacity = p.goboAlpha * (b.is ? 2 : 1) * midsPulse;
+                    ch.material.opacity = beamAlpha;
                 }
             });
+
+            // Update volumetric beam cone
+            if (gobo.cone) {
+                gobo.cone.material.color.copy(col);
+                gobo.cone.material.opacity = beamAlpha * 0.3;  // beam subtler than floor pattern
+            }
+
+            // Update lens glow
+            if (gobo.lens) {
+                gobo.lens.material.color.copy(col);
+                gobo.lens.material.opacity = beamAlpha > 0.01 ? 0.15 + beamAlpha * 2 : 0.02;
+            }
         }
     }
 
