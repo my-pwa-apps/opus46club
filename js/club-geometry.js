@@ -527,14 +527,15 @@ export class ClubGeometry {
         this._buildLEDGlow(rearMain, 16, 5);
     }
 
-    /** Backlight glow planes behind LED panels — simulates light spill */
+    /** Backlight glow planes behind LED panels — simulates bright light spill */
     _buildLEDGlow(screen, w, h) {
         const glowMat = new THREE.MeshBasicMaterial({
-            color: 0x1a0830, transparent: true, opacity: 0.18,
+            color: 0x4020ff, transparent: true, opacity: 0.35,
             side: THREE.DoubleSide, depthWrite: false,
+            blending: THREE.AdditiveBlending,
         });
-        // Slightly larger plane behind the screen
-        const glow = new THREE.Mesh(new THREE.PlaneGeometry(w + 1.5, h + 1.0), glowMat);
+        // Larger plane behind the screen for visible halo
+        const glow = new THREE.Mesh(new THREE.PlaneGeometry(w + 2.5, h + 1.5), glowMat);
         glow.position.copy(screen.position);
         glow.quaternion.copy(screen.quaternion);
         // Push glow slightly behind screen

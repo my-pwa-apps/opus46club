@@ -155,9 +155,9 @@ async function init() {
 
     const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        1.1,    // strength — makes beams and lasers glow properly
-        0.35,   // radius
-        0.6     // threshold — catch beams + bright fixtures
+        1.3,    // strength — makes beams, lasers, and LED walls glow
+        0.4,    // radius — wider bloom spread
+        0.45    // threshold — catch LED walls + beams + bright fixtures
     );
     composer.addPass(bloomPass);
 
