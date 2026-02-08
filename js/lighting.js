@@ -370,18 +370,13 @@ export class LightingSystem {
         // floor target (floor).  A volumetric beam cone connects them.
         // Fixture and floor are OFFSET in X/Z to create realistic angled beams.
         const configs = [
-            { floor: [-4, 0.005, -4],  fix: [-2,   4.15, -2],   s: 3.2, type: 'breakup' },
-            { floor: [ 4, 0.005, -4],  fix: [ 2,   4.15, -2],   s: 3.2, type: 'star' },
-            { floor: [ 0, 0.005,  2],  fix: [ 1.5, 4.15,  0],   s: 4.0, type: 'ring' },
-            { floor: [-5, 0.005,  5],  fix: [-3,   4.15,  3],   s: 2.8, type: 'breakup' },
-            { floor: [ 5, 0.005,  5],  fix: [ 3,   4.15,  3],   s: 2.8, type: 'star' },
-            { floor: [ 0, 0.005, -8],  fix: [ 1.5, 4.15, -5.5], s: 3.5, type: 'ring' },
+            { floor: [-4, 0.005, -4],  fix: [-2,   4.15, -2],   s: 3.2 },
+            { floor: [ 4, 0.005, -4],  fix: [ 2,   4.15, -2],   s: 3.2 },
+            { floor: [ 0, 0.005,  2],  fix: [ 1.5, 4.15,  0],   s: 4.0 },
+            { floor: [-5, 0.005,  5],  fix: [-3,   4.15,  3],   s: 2.8 },
+            { floor: [ 5, 0.005,  5],  fix: [ 3,   4.15,  3],   s: 2.8 },
+            { floor: [ 0, 0.005, -8],  fix: [ 1.5, 4.15, -5.5], s: 3.5 },
         ];
-
-        const baseMat = () => new THREE.MeshBasicMaterial({
-            color: 0xffffff, transparent: true, opacity: 0.03,
-            depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-        });
 
         const beamMat = () => new THREE.MeshBasicMaterial({
             color: 0xffffff, transparent: true, opacity: 0.012,
@@ -396,43 +391,6 @@ export class LightingSystem {
             const c = configs[gi];
             const fixV = new THREE.Vector3(...c.fix);
             const floorV = new THREE.Vector3(...c.floor);
-
-            // ── Floor pattern group ──
-            const g = new THREE.Group();
-            g.position.copy(floorV);
-
-            if (c.type === 'breakup') {
-                for (let d = 0; d < 18; d++) {
-                    const a = (d / 18) * Math.PI * 2;
-                    const r = 0.25 + Math.random() * c.s * 0.38;
-                    const dot = new THREE.Mesh(new THREE.CircleGeometry(0.06 + Math.random() * 0.22, 8), baseMat());
-                    dot.rotation.x = -Math.PI / 2;
-                    dot.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
-                    g.add(dot);
-                }
-            } else if (c.type === 'star') {
-                for (let l = 0; l < 10; l++) {
-                    const a = (l / 10) * Math.PI * 2;
-                    const line = new THREE.Mesh(
-                        new THREE.PlaneGeometry(0.035, c.s * 0.75),
-                        baseMat()
-                    );
-                    line.rotation.x = -Math.PI / 2;
-                    line.rotation.z = a;
-                    g.add(line);
-                }
-            } else {
-                for (let r = 0; r < 4; r++) {
-                    const ring = new THREE.Mesh(
-                        new THREE.RingGeometry(c.s * 0.1 * (r + 1), c.s * 0.1 * (r + 1) + 0.035, 36),
-                        baseMat()
-                    );
-                    ring.rotation.x = -Math.PI / 2;
-                    g.add(ring);
-                }
-            }
-
-            this.group.add(g);
 
             // ── Fixture housing on truss ──
             const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.1, 8), housingMat);
@@ -490,7 +448,7 @@ export class LightingSystem {
             cone.renderOrder = 10;
             this.group.add(cone);
 
-            this.goboGroups.push({ group: g, config: c, idx: gi, cone, lens });
+            this.goboGroups.push({ config: c, idx: gi, cone, lens });
         }
     }
 
@@ -542,16 +500,61 @@ export class LightingSystem {
 
     /* ── Mirror Ball ──────────────────────────────────────────────── */
     _buildMirrorBall() {
-        // Disco ball — faceted sphere
-        this.mirrorBall = new THREE.Mesh(
-            new THREE.IcosahedronGeometry(0.5, 4),
-            new THREE.MeshStandardMaterial({
-                color: 0xffffff, roughness: 0.0, metalness: 1.0,
-                envMapIntensity: 5.0,
-            })
+        // Real disco / mirror ball: a sphere covered in hundreds of tiny
+        // square mirror tiles arranged in horizontal rows.
+        const radius = 0.5;
+        const tileSize = 0.038;             // each mirror tile edge length
+        const gap = 0.005;                  // gap between tiles
+        const ballGroup = new THREE.Group();
+        ballGroup.position.set(0, 4.55, 0);
+
+        // Dark core sphere (visible through gaps between tiles)
+        const core = new THREE.Mesh(
+            new THREE.SphereGeometry(radius - 0.005, 32, 32),
+            new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8, metalness: 0.2 })
         );
-        this.mirrorBall.position.set(0, 4.55, 0);
-        this.group.add(this.mirrorBall);
+        ballGroup.add(core);
+
+        // Tile material (shared) — highly reflective mirror
+        const tileMat = new THREE.MeshStandardMaterial({
+            color: 0xdddddd,
+            roughness: 0.05,
+            metalness: 1.0,
+            envMapIntensity: 5.0,
+        });
+
+        // Shared tile geometry — small square
+        const tileGeo = new THREE.PlaneGeometry(tileSize, tileSize);
+
+        // Place tiles in horizontal rows from bottom to top
+        const step = tileSize + gap;
+        const rowCount = Math.floor((Math.PI * radius) / step);
+        for (let row = 1; row < rowCount; row++) {
+            const phi = (row / rowCount) * Math.PI;          // polar angle
+            const y = Math.cos(phi) * radius;
+            const ringR = Math.sin(phi) * radius;            // radius of this ring
+            const circumference = 2 * Math.PI * ringR;
+            const tilesInRow = Math.max(1, Math.floor(circumference / step));
+
+            for (let t = 0; t < tilesInRow; t++) {
+                const theta = (t / tilesInRow) * Math.PI * 2;
+                const tile = new THREE.Mesh(tileGeo, tileMat);
+
+                // Position on sphere surface
+                const x = Math.sin(phi) * Math.cos(theta) * radius;
+                const z = Math.sin(phi) * Math.sin(theta) * radius;
+                tile.position.set(x, y, z);
+
+                // Orient tile face outward (lookAt origin then flip)
+                tile.lookAt(0, 0, 0);
+                tile.rotateY(Math.PI);  // face outward
+
+                ballGroup.add(tile);
+            }
+        }
+
+        this.mirrorBall = ballGroup;
+        this.group.add(ballGroup);
 
         // Wire & motor
         const wire = new THREE.Mesh(
@@ -870,8 +873,6 @@ export class LightingSystem {
         const uniformCol = new THREE.Color().setHSL(uniformHue, 0.7, 0.45);
 
         for (const gobo of this.goboGroups) {
-            gobo.group.rotation.y = time * p.goboRot + gobo.idx * 0.6;
-
             let col;
             if (p.goboUniform) {
                 col = uniformCol;
@@ -883,14 +884,6 @@ export class LightingSystem {
             // Gobos pulse with mids energy
             const midsPulse = 0.7 + this._mids * 1.3;  // 0.7–2.0
             const beamAlpha = p.goboAlpha * (b.is ? 2 : 1) * midsPulse;
-
-            // Update floor pattern
-            gobo.group.traverse(ch => {
-                if (ch.isMesh && ch.material.transparent) {
-                    ch.material.color.copy(col);
-                    ch.material.opacity = beamAlpha;
-                }
-            });
 
             // Update volumetric beam cone
             if (gobo.cone) {
