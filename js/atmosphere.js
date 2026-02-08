@@ -75,6 +75,17 @@ export class AtmosphereSystem {
             this.group.add(sheet);
             this.layers.push({ mesh: sheet, baseY: sheet.position.y, kind: 'sheet', layer: i });
         }
+
+        // Crossed vertical haze planes — catch beams from different angles
+        // These add volumetric depth when viewed from any direction in VR.
+        for (let i = 0; i < 4; i++) {
+            const angle = i * Math.PI / 4;   // 0°, 45°, 90°, 135°
+            const cross = new THREE.Mesh(new THREE.PlaneGeometry(22, 3.5), mat());
+            cross.position.set(0, 2.8, 0);
+            cross.rotation.y = angle;
+            this.group.add(cross);
+            this.layers.push({ mesh: cross, baseY: 2.8, kind: 'cross', layer: i });
+        }
     }
 
     /* ── CO2 smoke jets ────────────────────────────────────────── */
@@ -161,6 +172,10 @@ export class AtmosphereSystem {
             } else if (l.kind === 'sheet') {
                 l.mesh.material.opacity = fog * 0.045 * (beat ? 1.15 : 1);
                 l.mesh.position.y = l.baseY + Math.sin(time * 0.12 + l.layer) * 0.08;
+            } else if (l.kind === 'cross') {
+                // Crossed vertical haze — slow rotation + bass-reactive opacity
+                l.mesh.rotation.y += dt * 0.003;
+                l.mesh.material.opacity = fog * 0.04 * (beat ? 1.2 : 1) * (1 + bass * 0.3);
             }
         }
 

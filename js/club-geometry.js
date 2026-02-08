@@ -183,6 +183,28 @@ export class ClubGeometry {
             ring.position.set((Math.random() - 0.5) * 26, 0.002, (Math.random() - 0.5) * 26);
             this.group.add(ring);
         }
+
+        // Wet-look puddle zones near bar & dance floor — catch light reflections
+        const puddleMat = new THREE.MeshStandardMaterial({
+            color: 0x1a1a1a, roughness: 0.15, metalness: 0.6,
+            transparent: true, opacity: 0.35, envMapIntensity: 1.5,
+        });
+        const puddleZones = [
+            { x: -11, z: 1.5, r: 1.8 },   // bar spills
+            { x: -10, z: -0.5, r: 1.2 },  // bar spills 2
+            { x: 0, z: 0, r: 2.5 },       // dance floor centre
+            { x: 2, z: 3, r: 1.0 },       // dance floor edge
+            { x: -3, z: -2, r: 0.9 },     // random puddle
+        ];
+        for (const pz of puddleZones) {
+            const puddle = new THREE.Mesh(
+                new THREE.CircleGeometry(pz.r, 16),
+                puddleMat
+            );
+            puddle.rotation.x = -Math.PI / 2;
+            puddle.position.set(pz.x, 0.003, pz.z);
+            this.group.add(puddle);
+        }
     }
 
     /* ══════════════════════════════════════════════════════════════
@@ -226,18 +248,18 @@ export class ClubGeometry {
         });
 
         // Back wall
-        const bw = new THREE.Mesh(new THREE.PlaneGeometry(34, H), concMat.clone());
+        const bw = new THREE.Mesh(new THREE.PlaneGeometry(34, H), concMat);
         bw.position.set(0, H / 2, -HW); bw.receiveShadow = true;
         this.group.add(bw);
 
         // Front wall
-        const fw = new THREE.Mesh(new THREE.PlaneGeometry(34, H), concMat.clone());
+        const fw = new THREE.Mesh(new THREE.PlaneGeometry(34, H), concMat);
         fw.position.set(0, H / 2, HW); fw.rotation.y = Math.PI;
         this.group.add(fw);
 
         // Side walls
         for (const side of [-1, 1]) {
-            const sw = new THREE.Mesh(new THREE.PlaneGeometry(34, H), darkMat.clone());
+            const sw = new THREE.Mesh(new THREE.PlaneGeometry(34, H), darkMat);
             sw.position.set(side * HW, H / 2, 0);
             sw.rotation.y = side * -Math.PI / 2;
             sw.receiveShadow = true;

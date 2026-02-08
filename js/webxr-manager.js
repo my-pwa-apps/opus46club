@@ -1,5 +1,5 @@
 /**
- * WebXR Manager — VR session management, controllers, teleportation
+ * WebXR Manager — VR session management, controllers, teleportation, haptics
  */
 import * as THREE from 'three';
 import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
@@ -16,6 +16,12 @@ export class WebXRManager {
         this.teleportMarker = null;
         this.raycaster = new THREE.Raycaster();
         this.tempMatrix = new THREE.Matrix4();
+
+        // External hook — set by UIController so squeeze can trigger smoke
+        this.onSqueeze = null;
+
+        // Haptic state — pulsed on beats
+        this._lastBeat = false;
     }
 
     async init() {
@@ -33,6 +39,7 @@ export class WebXRManager {
 
         // Enable XR on renderer
         this.renderer.xr.enabled = true;
+        this.renderer.xr.setReferenceSpaceType('local-floor');
 
         // Camera rig (for teleportation)
         this.cameraRig = new THREE.Group();
@@ -159,8 +166,45 @@ export class WebXRManager {
     }
 
     _onSqueezeStart(event, controllerIndex) {
-        // Squeeze can be used for other interactions
-        // e.g., trigger smoke jets or change lighting
+        // Squeeze triggers smoke jets
+        if (this.onSqueeze) this.onSqueeze();
+
+        // Haptic pulse as confirmation
+        const session = this.renderer.xr.getSession();
+        if (session) {
+            const source = event.target?.gamepad;
+            if (source?.hapticActuators?.[0]) {
+                source.hapticActuators[0].pulse(0.6, 100);
+            }
+        }
+    }
+
+    /**
+     * Call once per frame from the animation loop.
+     * Delivers haptic feedback synced to detected beats.
+     */
+    update(state) {
+        if (!this.isPresenting) return;
+
+        const isBeat = state?.isBeat ?? false;
+        if (isBeat && !this._lastBeat) {
+            // Fire haptic pulse on new beat onset
+            const session = this.renderer.xr.getSession();
+            if (session) {
+                for (const source of session.inputSources) {
+                    if (source.gamepad?.hapticActuators?.[0]) {
+                        const intensity = state.dropActive ? 0.7 : 0.25;
+                        source.gamepad.hapticActuators[0].pulse(intensity, 60);
+                    }
+                }
+            }
+        }
+        this._lastBeat = isBeat;
+
+        // Animate teleport marker ring
+        if (this.teleportMarker?.visible) {
+            this.teleportMarker.rotation.z += 0.02;
+        }
     }
 
     async enterVR() {

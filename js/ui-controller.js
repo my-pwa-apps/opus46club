@@ -14,6 +14,13 @@ export class UIController {
     init() {
         this._bindControls();
         this._startClock();
+
+        // Wire VR squeeze → smoke jets
+        if (this.xr) {
+            this.xr.onSqueeze = () => {
+                this.atmosphere?.triggerSmokeJets();
+            };
+        }
     }
 
     _bindControls() {

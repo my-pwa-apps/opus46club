@@ -12,6 +12,9 @@ export class DJBooth {
         scene.add(this.group);
         this.screenMeshes = [];
         this.vuMeshes = [];
+        this._jogL = null;
+        this._jogR = null;
+        this._jogRings = [];
     }
 
     build() {
@@ -51,12 +54,14 @@ export class DJBooth {
             const jw = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.035, 32),
                 new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.15, metalness: 0.9, envMapIntensity: 2.5 }));
             jw.position.set(0, 0.12, 0.08); jw.name = `jog-${s > 0 ? 'R' : 'L'}`;
+            if (s > 0) this._jogR = jw; else this._jogL = jw;
             cg.add(jw);
 
             // Jog ring LED
             const jr = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.006, 8, 32),
                 new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.5 }));
             jr.rotation.x = Math.PI / 2; jr.position.set(0, 0.11, 0.08); jr.name = 'jog-ring';
+            this._jogRings.push(jr);
             cg.add(jr);
 
             // Display
@@ -200,14 +205,11 @@ export class DJBooth {
     }
 
     update(time, dt, state) {
-        const jogL = this.group.getObjectByName('jog-L');
-        const jogR = this.group.getObjectByName('jog-R');
-        if (jogL) jogL.rotation.y += dt * 2;
-        if (jogR) jogR.rotation.y -= dt * 2;
+        if (this._jogL) this._jogL.rotation.y += dt * 2;
+        if (this._jogR) this._jogR.rotation.y -= dt * 2;
 
-        this.group.traverse(ch => {
-            if (ch.name === 'jog-ring') ch.material.opacity = state.isBeat ? 0.85 : 0.25 + Math.sin(time * 4) * 0.1;
-        });
+        const ringOp = state.isBeat ? 0.85 : 0.25 + Math.sin(time * 4) * 0.1;
+        for (const jr of this._jogRings) jr.material.opacity = ringOp;
 
         // VU meters — smooth audio-reactive animation
         const bass = state.bass ?? 0.3;

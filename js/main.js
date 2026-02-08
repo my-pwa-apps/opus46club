@@ -111,13 +111,13 @@ async function init() {
     scene.environment = envRT.texture;
     pmremGenerator.dispose();
 
-    camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 120);
+    camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.05, 120);
     camera.position.set(0, 1.7, 8);
 
     controls = new OrbitControls(camera, canvas);
     controls.target.set(0, 1.4, -2);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.06;
+    controls.dampingFactor = 0.08;
     controls.maxPolarAngle = Math.PI * 0.85;
     controls.minDistance = 1;
     controls.maxDistance = 20;
@@ -231,6 +231,7 @@ function animate() {
     djBooth?.update(elapsedTime, deltaTime, state);
     vjVisuals?.update(elapsedTime, deltaTime, state);
     atmosphere?.update(elapsedTime, deltaTime, state);
+    xrManager?.update(state);
 
     // Fog — bass-reactive density for immersion
     const bassFogBoost = (state.bass || 0.3) * 0.006;

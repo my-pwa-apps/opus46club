@@ -166,6 +166,10 @@ export class LightingSystem {
         this._v2 = new THREE.Vector3();
         this._v3 = new THREE.Vector3();
 
+        // Reusable colour objects (avoid per-frame allocations)
+        this._tmpColor  = new THREE.Color();
+        this._tmpColor2 = new THREE.Color();
+
         // Previous movement for each head (for lerp)
         this._headTargets = [];
     }
@@ -310,7 +314,7 @@ export class LightingSystem {
         ];
 
         const housingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.3, metalness: 0.85 });
-        const beamGeo    = new THREE.CylinderGeometry(BEAM_TOP_R, BEAM_BOT_R, BEAM_LENGTH, 12, 1, true);
+        const beamGeo    = new THREE.CylinderGeometry(BEAM_TOP_R, BEAM_BOT_R, BEAM_LENGTH, 20, 1, true);
 
         for (let i = 0; i < positions.length; i++) {
             const pos = new THREE.Vector3(...positions[i]);
@@ -338,7 +342,7 @@ export class LightingSystem {
             // Only first 4 heads cast shadows — performance vs quality balance
             if (i < 4) {
                 spot.castShadow = true;
-                spot.shadow.mapSize.set(512, 512);
+                spot.shadow.mapSize.set(1024, 1024);
                 spot.shadow.bias = -0.001;
                 spot.shadow.camera.near = 0.5;
                 spot.shadow.camera.far = 20;
@@ -502,6 +506,7 @@ export class LightingSystem {
     _buildMirrorBall() {
         // Real disco / mirror ball: a sphere covered in hundreds of tiny
         // square mirror tiles arranged in horizontal rows.
+        // Uses InstancedMesh for optimal performance (1 draw call for all tiles).
         const radius = 0.5;
         const tileSize = 0.038;             // each mirror tile edge length
         const gap = 0.005;                  // gap between tiles
@@ -523,35 +528,42 @@ export class LightingSystem {
             envMapIntensity: 5.0,
         });
 
-        // Shared tile geometry — small square
-        const tileGeo = new THREE.PlaneGeometry(tileSize, tileSize);
-
-        // Place tiles in horizontal rows from bottom to top
+        // Pre-calculate all tile transforms
         const step = tileSize + gap;
         const rowCount = Math.floor((Math.PI * radius) / step);
+        const transforms = [];
+        const _obj = new THREE.Object3D();
+
         for (let row = 1; row < rowCount; row++) {
-            const phi = (row / rowCount) * Math.PI;          // polar angle
+            const phi = (row / rowCount) * Math.PI;
             const y = Math.cos(phi) * radius;
-            const ringR = Math.sin(phi) * radius;            // radius of this ring
+            const ringR = Math.sin(phi) * radius;
             const circumference = 2 * Math.PI * ringR;
             const tilesInRow = Math.max(1, Math.floor(circumference / step));
 
             for (let t = 0; t < tilesInRow; t++) {
                 const theta = (t / tilesInRow) * Math.PI * 2;
-                const tile = new THREE.Mesh(tileGeo, tileMat);
-
-                // Position on sphere surface
                 const x = Math.sin(phi) * Math.cos(theta) * radius;
                 const z = Math.sin(phi) * Math.sin(theta) * radius;
-                tile.position.set(x, y, z);
-
-                // Orient tile face outward (lookAt origin then flip)
-                tile.lookAt(0, 0, 0);
-                tile.rotateY(Math.PI);  // face outward
-
-                ballGroup.add(tile);
+                transforms.push({ x, y, z });
             }
         }
+
+        // Create InstancedMesh — single draw call for all tiles
+        const tileGeo = new THREE.PlaneGeometry(tileSize, tileSize);
+        const tilesMesh = new THREE.InstancedMesh(tileGeo, tileMat, transforms.length);
+
+        const _lookTarget = new THREE.Vector3();
+        for (let i = 0; i < transforms.length; i++) {
+            const t = transforms[i];
+            _obj.position.set(t.x, t.y, t.z);
+            _obj.lookAt(_lookTarget);       // face toward centre (0,0,0)
+            _obj.rotateY(Math.PI);          // flip to face outward
+            _obj.updateMatrix();
+            tilesMesh.setMatrixAt(i, _obj.matrix);
+        }
+        tilesMesh.instanceMatrix.needsUpdate = true;
+        ballGroup.add(tilesMesh);
 
         this.mirrorBall = ballGroup;
         this.group.add(ballGroup);
@@ -870,15 +882,15 @@ export class LightingSystem {
     _updateGobos(time, dt, state, b, p) {
         // Uniform colour: all gobos share one slowly-cycling hue for atmosphere
         const uniformHue = (time * 0.02) % 1;
-        const uniformCol = new THREE.Color().setHSL(uniformHue, 0.7, 0.45);
+        this._tmpColor2.setHSL(uniformHue, 0.7, 0.45);
 
         for (const gobo of this.goboGroups) {
             let col;
             if (p.goboUniform) {
-                col = uniformCol;
+                col = this._tmpColor2;
             } else {
                 const h = (time * 0.05 + gobo.idx * 0.17) % 1;
-                col = new THREE.Color().setHSL(h, 0.85, 0.5);
+                col = this._tmpColor.setHSL(h, 0.85, 0.5);
             }
 
             // Gobos pulse with mids energy
