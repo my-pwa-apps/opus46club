@@ -9,6 +9,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { FilmPass } from 'three/addons/postprocessing/FilmPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 import { ClubGeometry } from './club-geometry.js';
 import { DJBooth } from './dj-booth.js';
@@ -66,13 +67,49 @@ async function init() {
     renderer.toneMappingExposure = 0.65;             // dark venue — light is the show
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.physicallyCorrectLights = true;
 
     updateLoader(10, 'Building scene...');
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x010101);
     scene.fog = new THREE.FogExp2(0x010101, 0.022);  // tuned for beam visibility
+
+    // Procedural dark environment map — gives metallic surfaces subtle reflections
+    const envScene = new THREE.Scene();
+    // Dark ambient dome with subtle coloured highlights simulating club lighting
+    const envGeo = new THREE.SphereGeometry(50, 16, 8);
+    const envColors = envGeo.attributes.position.count;
+    const envColorAttr = new Float32Array(envColors * 3);
+    for (let i = 0; i < envColors; i++) {
+        const y = envGeo.attributes.position.getY(i) / 50; // -1 to 1
+        // Floor: very dark. Ceiling: hint of warm light. Sides: cold blue tint.
+        const r = 0.01 + Math.max(0, y) * 0.03;
+        const g = 0.01 + Math.max(0, y) * 0.02;
+        const b = 0.015 + (1 - Math.abs(y)) * 0.04;
+        envColorAttr[i * 3] = r;
+        envColorAttr[i * 3 + 1] = g;
+        envColorAttr[i * 3 + 2] = b;
+    }
+    envGeo.setAttribute('color', new THREE.BufferAttribute(envColorAttr, 3));
+    envScene.add(new THREE.Mesh(envGeo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+    // A few bright hotspots simulating beam reflections
+    const hotspotGeo = new THREE.SphereGeometry(1.5, 6, 4);
+    const hotspots = [
+        { pos: [0, 40, -30], color: 0x4466ff },
+        { pos: [-25, 35, 10], color: 0xff2266 },
+        { pos: [20, 38, 15], color: 0x00ffcc },
+        { pos: [0, -10, 0], color: 0x111111 },
+    ];
+    for (const hs of hotspots) {
+        const m = new THREE.Mesh(hotspotGeo, new THREE.MeshBasicMaterial({ color: hs.color }));
+        m.position.set(...hs.pos);
+        envScene.add(m);
+    }
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    pmremGenerator.compileCubemapShader();
+    const envRT = pmremGenerator.fromScene(envScene, 0.04);
+    scene.environment = envRT.texture;
+    pmremGenerator.dispose();
 
     camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 120);
     camera.position.set(0, 1.7, 8);
@@ -127,6 +164,9 @@ async function init() {
     // Film grain — subtle industrial texture
     const filmPass = new FilmPass(0.15);
     composer.addPass(filmPass);
+
+    // OutputPass — ensures correct color space in post-processing chain
+    composer.addPass(new OutputPass());
 
     updateLoader(92, 'Checking headset...');
     xrManager = new WebXRManager(renderer, scene, camera);
@@ -192,8 +232,9 @@ function animate() {
     vjVisuals?.update(elapsedTime, deltaTime, state);
     atmosphere?.update(elapsedTime, deltaTime, state);
 
-    // Fog
-    scene.fog.density = 0.018 + state.fogDensity * 0.018;
+    // Fog — bass-reactive density for immersion
+    const bassFogBoost = (state.bass || 0.3) * 0.006;
+    scene.fog.density = 0.018 + state.fogDensity * 0.018 + bassFogBoost;
 
     if (!xrManager?.isPresenting) {
         controls.update();

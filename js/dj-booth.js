@@ -24,7 +24,7 @@ export class DJBooth {
     }
 
     _buildDesk() {
-        const dm = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.35, metalness: 0.6 });
+        const dm = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.35, metalness: 0.6, envMapIntensity: 1.5 });
         const top = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.06, 1.6), dm);
         top.position.set(0, 0.97, 0); top.castShadow = true;
         this.group.add(top);
@@ -41,7 +41,7 @@ export class DJBooth {
     }
 
     _buildCDJs() {
-        const cm = new THREE.MeshStandardMaterial({ color: 0x0d0d0d, roughness: 0.2, metalness: 0.8 });
+        const cm = new THREE.MeshStandardMaterial({ color: 0x0d0d0d, roughness: 0.2, metalness: 0.8, envMapIntensity: 2.0 });
         for (const s of [-1, 1]) {
             const cg = new THREE.Group();
             const body = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.1, 0.75), cm);
@@ -49,7 +49,7 @@ export class DJBooth {
 
             // Jog wheel
             const jw = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.035, 32),
-                new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.15, metalness: 0.9 }));
+                new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.15, metalness: 0.9, envMapIntensity: 2.5 }));
             jw.position.set(0, 0.12, 0.08); jw.name = `jog-${s > 0 ? 'R' : 'L'}`;
             cg.add(jw);
 
@@ -79,7 +79,7 @@ export class DJBooth {
     _buildMixer() {
         const mg = new THREE.Group();
         const body = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.06, 0.7),
-            new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.15, metalness: 0.85 }));
+            new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.15, metalness: 0.85, envMapIntensity: 2.0 }));
         body.position.y = 0.03; mg.add(body);
 
         for (let ch = 0; ch < 4; ch++) {
@@ -209,8 +209,22 @@ export class DJBooth {
             if (ch.name === 'jog-ring') ch.material.opacity = state.isBeat ? 0.85 : 0.25 + Math.sin(time * 4) * 0.1;
         });
 
-        for (const vu of this.vuMeshes) {
-            vu.material.opacity += ((Math.random() > 0.4 ? 0.65 + Math.random() * 0.35 : 0.1) - vu.material.opacity) * 0.2;
+        // VU meters — smooth audio-reactive animation
+        const bass = state.bass ?? 0.3;
+        const mids = state.mids ?? 0.25;
+        const energy = state.audioEnergy ?? 0.35;
+        for (let i = 0; i < this.vuMeshes.length; i++) {
+            const vu = this.vuMeshes[i];
+            const channelPhase = Math.floor(i / 8);  // 4 channels, 8 LEDs each
+            const ledIdx = i % 8;
+            const channelLevel = channelPhase === 0 ? bass
+                : channelPhase === 1 ? mids
+                : channelPhase === 2 ? energy
+                : (bass + mids) * 0.5;
+            // LEDs light up from bottom; higher LEDs need more level
+            const threshold = ledIdx / 8;
+            const target = channelLevel > threshold ? 0.65 + (channelLevel - threshold) * 0.35 : 0.05;
+            vu.material.opacity += (target - vu.material.opacity) * 0.15;
         }
 
         const hue = (time * 0.04) % 1;

@@ -118,6 +118,7 @@ canvas#club-canvas {
     color: #fff;
     font-size: 1.2rem;
     cursor: pointer;
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     transition: all 0.2s;
 }
@@ -132,6 +133,7 @@ canvas#club-canvas {
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 12px;
     padding: 1.2rem;
+    -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     transition: all 0.3s ease;
 }
@@ -222,6 +224,7 @@ canvas#club-canvas {
     font-weight: 700;
     letter-spacing: 0.3em;
     cursor: pointer;
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     transition: all 0.3s;
 }

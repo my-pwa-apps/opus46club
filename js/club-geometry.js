@@ -50,9 +50,52 @@ export class ClubGeometry {
        ══════════════════════════════════════════════════════════ */
 
     _buildFloor() {
+        // Procedural concrete bump texture for realistic surface detail
+        const bumpCanvas = document.createElement('canvas');
+        bumpCanvas.width = 512; bumpCanvas.height = 512;
+        const bCtx = bumpCanvas.getContext('2d');
+        // Base noise
+        for (let y = 0; y < 512; y += 2) {
+            for (let x = 0; x < 512; x += 2) {
+                const v = 100 + Math.random() * 55;
+                bCtx.fillStyle = `rgb(${v},${v},${v})`;
+                bCtx.fillRect(x, y, 2, 2);
+            }
+        }
+        // Add larger splotches for aggregate texture
+        for (let i = 0; i < 200; i++) {
+            const v = 80 + Math.random() * 80;
+            bCtx.fillStyle = `rgba(${v},${v},${v},0.15)`;
+            const sz = 3 + Math.random() * 12;
+            bCtx.beginPath();
+            bCtx.arc(Math.random() * 512, Math.random() * 512, sz, 0, Math.PI * 2);
+            bCtx.fill();
+        }
+        const bumpTex = new THREE.CanvasTexture(bumpCanvas);
+        bumpTex.wrapS = bumpTex.wrapT = THREE.RepeatWrapping;
+        bumpTex.repeat.set(8, 8);
+
+        // Roughness variation texture
+        const roughCanvas = document.createElement('canvas');
+        roughCanvas.width = 256; roughCanvas.height = 256;
+        const rCtx = roughCanvas.getContext('2d');
+        rCtx.fillStyle = '#ddd';
+        rCtx.fillRect(0, 0, 256, 256);
+        for (let i = 0; i < 300; i++) {
+            const v = 150 + Math.random() * 105;
+            rCtx.fillStyle = `rgb(${v},${v},${v})`;
+            rCtx.fillRect(Math.random() * 256, Math.random() * 256, 2 + Math.random() * 6, 2 + Math.random() * 6);
+        }
+        const roughTex = new THREE.CanvasTexture(roughCanvas);
+        roughTex.wrapS = roughTex.wrapT = THREE.RepeatWrapping;
+        roughTex.repeat.set(8, 8);
+
         // Main slab
         const floorMat = new THREE.MeshStandardMaterial({
             color: 0x2a2a2a, roughness: 0.88, metalness: 0.04,
+            bumpMap: bumpTex, bumpScale: 0.12,
+            roughnessMap: roughTex,
+            envMapIntensity: 0.3,
         });
         const floor = new THREE.Mesh(new THREE.PlaneGeometry(34, 34), floorMat);
         floor.rotation.x = -Math.PI / 2;
@@ -71,6 +114,13 @@ export class ClubGeometry {
         }
 
         // Wear patches — darker concrete where crowds gather
+        const wearMats = [];
+        for (let w = 0; w < 4; w++) {
+            wearMats.push(new THREE.MeshStandardMaterial({
+                color: 0x111111 + w * 0x020202,
+                roughness: 0.97, transparent: true, opacity: 0.25 + w * 0.08,
+            }));
+        }
         const wearAreas = [
             { x: 0, z: 0, r: 4.5 },
             { x: 0, z: -11, r: 3 },
@@ -84,10 +134,7 @@ export class ClubGeometry {
                 const dist = Math.random() * w.r;
                 const patch = new THREE.Mesh(
                     new THREE.CircleGeometry(0.3 + Math.random() * 1.6, 10),
-                    new THREE.MeshStandardMaterial({
-                        color: 0x111111 + Math.floor(Math.random() * 0x060606),
-                        roughness: 0.97, transparent: true, opacity: 0.25 + Math.random() * 0.3,
-                    })
+                    wearMats[p % wearMats.length]
                 );
                 patch.rotation.x = -Math.PI / 2;
                 patch.position.set(w.x + Math.cos(ang) * dist, 0.002, w.z + Math.sin(ang) * dist);
@@ -96,13 +143,14 @@ export class ClubGeometry {
         }
 
         // Concrete cracks
+        const crackMat = new THREE.MeshStandardMaterial({
+            color: 0x0a0a0a, roughness: 1.0, transparent: true, opacity: 0.4,
+        });
         for (let i = 0; i < 12; i++) {
             const len = 0.8 + Math.random() * 3;
             const crack = new THREE.Mesh(
                 new THREE.PlaneGeometry(0.008 + Math.random() * 0.012, len),
-                new THREE.MeshStandardMaterial({
-                    color: 0x0a0a0a, roughness: 1.0, transparent: true, opacity: 0.4,
-                })
+                crackMat
             );
             crack.rotation.x = -Math.PI / 2;
             crack.rotation.z = Math.random() * Math.PI;
@@ -124,14 +172,13 @@ export class ClubGeometry {
         }
 
         // Beverage stains
+        const stainMat = new THREE.MeshStandardMaterial({
+            color: 0x0e0e0e, transparent: true, opacity: 0.2,
+            roughness: 1.0,
+        });
+        const stainGeo = new THREE.RingGeometry(0.025, 0.032, 14);
         for (let i = 0; i < 20; i++) {
-            const ring = new THREE.Mesh(
-                new THREE.RingGeometry(0.025, 0.032, 14),
-                new THREE.MeshStandardMaterial({
-                    color: 0x0e0e0e, transparent: true, opacity: 0.15 + Math.random() * 0.15,
-                    roughness: 1.0,
-                })
-            );
+            const ring = new THREE.Mesh(stainGeo, stainMat);
             ring.rotation.x = -Math.PI / 2;
             ring.position.set((Math.random() - 0.5) * 26, 0.002, (Math.random() - 0.5) * 26);
             this.group.add(ring);
@@ -144,11 +191,38 @@ export class ClubGeometry {
 
     _buildWalls() {
         const H = 5, HW = 16;
+
+        // Procedural concrete wall bump texture
+        const wallBumpCanvas = document.createElement('canvas');
+        wallBumpCanvas.width = 512; wallBumpCanvas.height = 256;
+        const wbCtx = wallBumpCanvas.getContext('2d');
+        wbCtx.fillStyle = '#888';
+        wbCtx.fillRect(0, 0, 512, 256);
+        for (let y = 0; y < 256; y += 2) {
+            for (let x = 0; x < 512; x += 2) {
+                const v = 110 + Math.random() * 35;
+                wbCtx.fillStyle = `rgb(${v},${v},${v})`;
+                wbCtx.fillRect(x, y, 2, 2);
+            }
+        }
+        // Form board horizontal lines (concrete cast marks)
+        for (let y = 0; y < 256; y += 18) {
+            wbCtx.fillStyle = `rgba(60,60,60,0.2)`;
+            wbCtx.fillRect(0, y, 512, 1);
+        }
+        const wallBumpTex = new THREE.CanvasTexture(wallBumpCanvas);
+        wallBumpTex.wrapS = wallBumpTex.wrapT = THREE.RepeatWrapping;
+        wallBumpTex.repeat.set(6, 2);
+
         const concMat = new THREE.MeshStandardMaterial({
             color: 0x2c2c2c, roughness: 0.92, metalness: 0.02, side: THREE.DoubleSide,
+            bumpMap: wallBumpTex, bumpScale: 0.08,
+            envMapIntensity: 0.15,
         });
         const darkMat = new THREE.MeshStandardMaterial({
             color: 0x222222, roughness: 0.95, metalness: 0.01, side: THREE.DoubleSide,
+            bumpMap: wallBumpTex, bumpScale: 0.06,
+            envMapIntensity: 0.1,
         });
 
         // Back wall
@@ -169,18 +243,24 @@ export class ClubGeometry {
             sw.receiveShadow = true;
             this.group.add(sw);
 
-            // Exposed brick section (skip LED wall zone — panels are 20m wide centred at z=0)
+            // Exposed brick section — use a small palette of shared materials
+            const brickPalette = [];
+            for (let b = 0; b < 6; b++) {
+                brickPalette.push(new THREE.MeshStandardMaterial({
+                    color: 0x4a3025 + b * 0x020101,
+                    roughness: 0.95, metalness: 0.02,
+                }));
+            }
+            const brickGeo = new THREE.BoxGeometry(0.004, 0.09, 0.48);
+
             for (let row = 0; row < 22; row++) {
                 for (let col = 0; col < 28; col++) {
                     const z = -16 + col * 1.15 + (row % 2) * 0.57;
                     if (Math.abs(z) < 11) continue;   // full LED wall coverage
 
                     const brick = new THREE.Mesh(
-                        new THREE.BoxGeometry(0.004, 0.09, 0.48),
-                        new THREE.MeshStandardMaterial({
-                            color: 0x4a3025 + Math.floor(Math.random() * 0x0a0606),
-                            roughness: 0.95, metalness: 0.02,
-                        })
+                        brickGeo,
+                        brickPalette[(row * 7 + col) % brickPalette.length]
                     );
                     brick.position.set(side * (HW - 0.002), 0.2 + row * 0.125, z);
                     this.group.add(brick);
@@ -225,6 +305,7 @@ export class ClubGeometry {
     _buildCeiling() {
         const cMat = new THREE.MeshStandardMaterial({
             color: 0x1a1a1a, roughness: 0.95, metalness: 0.02, side: THREE.DoubleSide,
+            envMapIntensity: 0.08,
         });
         const c = new THREE.Mesh(new THREE.PlaneGeometry(34, 34), cMat);
         c.rotation.x = Math.PI / 2; c.position.y = 5;
@@ -243,7 +324,7 @@ export class ClubGeometry {
 
         // Steel I-beams
         const steelMat = new THREE.MeshStandardMaterial({
-            color: 0x2a2a2a, roughness: 0.35, metalness: 0.85,
+            color: 0x2a2a2a, roughness: 0.35, metalness: 0.85, envMapIntensity: 1.8,
         });
         for (let i = -12; i <= 12; i += 6) {
             const web = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.22, 34), steelMat);
@@ -263,7 +344,7 @@ export class ClubGeometry {
 
     _buildTrussRig() {
         const trussMat = new THREE.MeshStandardMaterial({
-            color: 0x3a3a3a, roughness: 0.28, metalness: 0.92,
+            color: 0x3a3a3a, roughness: 0.28, metalness: 0.92, envMapIntensity: 2.0,
         });
         const motorMat = new THREE.MeshStandardMaterial({
             color: 0x1a1a1a, roughness: 0.5, metalness: 0.7,

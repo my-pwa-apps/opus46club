@@ -335,6 +335,14 @@ export class LightingSystem {
             // ─ SpotLight
             const spot = new THREE.SpotLight(0xffffff, 4, 20, Math.PI / 9, 0.65, 1.6);
             spot.position.copy(pos);
+            // Only first 4 heads cast shadows — performance vs quality balance
+            if (i < 4) {
+                spot.castShadow = true;
+                spot.shadow.mapSize.set(512, 512);
+                spot.shadow.bias = -0.001;
+                spot.shadow.camera.near = 0.5;
+                spot.shadow.camera.far = 20;
+            }
             const target = new THREE.Object3D();
             target.position.set(0, 0, 2);
             this.scene.add(target);
@@ -345,6 +353,7 @@ export class LightingSystem {
             const coneMat = new THREE.MeshBasicMaterial({
                 color: 0xffffff, transparent: true, opacity: 0.02,
                 side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
+                fog: true,
             });
             const cone = new THREE.Mesh(beamGeo, coneMat.clone());
             cone.renderOrder = 10;
@@ -463,7 +472,10 @@ export class LightingSystem {
         // Disco ball — faceted sphere
         this.mirrorBall = new THREE.Mesh(
             new THREE.IcosahedronGeometry(0.5, 4),
-            new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.02, metalness: 1.0, envMapIntensity: 3 })
+            new THREE.MeshStandardMaterial({
+                color: 0xffffff, roughness: 0.0, metalness: 1.0,
+                envMapIntensity: 5.0,
+            })
         );
         this.mirrorBall.position.set(0, 4.55, 0);
         this.group.add(this.mirrorBall);
@@ -504,14 +516,17 @@ export class LightingSystem {
         }
 
         // Reflection dots — scattered across all room surfaces
+        // Use individual materials since each dot needs independent opacity control
         const dotMat = () => new THREE.MeshBasicMaterial({
             color: 0xffffff, transparent: true, opacity: 0,
             depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
         });
+        const dotGeo = new THREE.CircleGeometry(0.1, 6); // shared geometry
 
         for (let i = 0; i < 200; i++) {
             const sz = 0.04 + Math.random() * 0.18;
-            const dot = new THREE.Mesh(new THREE.CircleGeometry(sz, 6), dotMat());
+            const dot = new THREE.Mesh(dotGeo, dotMat());
+            dot.scale.setScalar(sz / 0.1); // scale shared geo to desired size
 
             // Store the surface type so we can orbit dots properly
             let surface; // 'floor', 'ceiling', 'wallLR', 'wallBack'
@@ -623,7 +638,8 @@ export class LightingSystem {
             const t = new THREE.Object3D(); t.position.set(...c.tgt);
             this.scene.add(t); sp.target = t;
             sp.castShadow = true;
-            sp.shadow.mapSize.set(512, 512);
+            sp.shadow.mapSize.set(1024, 1024);
+            sp.shadow.bias = -0.0005;
             this.group.add(sp);
             this.keySpots.push({ light: sp, cfg: c });
         }

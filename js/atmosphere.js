@@ -33,6 +33,7 @@ export class AtmosphereSystem {
             color: 0x667788, transparent: true, opacity: 0.06,
             side: THREE.DoubleSide, depthWrite: false,
             blending: THREE.AdditiveBlending,
+            fog: true,
         });
         for (let i = 0; i < 8; i++) {
             const y = 0.04 + i * 0.12;
@@ -140,16 +141,23 @@ export class AtmosphereSystem {
     update(time, dt, state) {
         const fog  = state.fogDensity ?? 0.5;
         const beat = state.isBeat;
+        const bass = state.bass ?? 0.3;
 
         for (const l of this.layers) {
             if (l.kind === 'ground') {
                 const undulate = Math.sin(time * 0.25 + l.layer * 0.45) * 0.035;
+                const drift = Math.sin(time * 0.08 + l.layer * 1.2) * 0.015;
                 l.mesh.position.y = l.baseY + undulate;
                 l.mesh.rotation.z = time * 0.008 + l.layer * 0.18;
-                l.mesh.material.opacity = fog * 0.14 * (1 - l.layer * 0.09) * (beat ? 1.3 : 1);
+                // Bass pushes ground fog outward
+                const bassPush = 1 + bass * 0.3;
+                l.mesh.material.opacity = fog * 0.14 * (1 - l.layer * 0.09) * (beat ? 1.3 : 1) * bassPush;
+                l.mesh.position.x = drift * l.layer;
             } else if (l.kind === 'room') {
                 l.mesh.rotation.y += dt * 0.006;
-                l.mesh.material.opacity = fog * 0.065 * (beat ? 1.2 : 1);
+                // Haze becomes more visible when energy is high
+                const energyBoost = 1 + (state.audioEnergy ?? 0.35) * 0.4;
+                l.mesh.material.opacity = fog * 0.065 * (beat ? 1.2 : 1) * energyBoost;
             } else if (l.kind === 'sheet') {
                 l.mesh.material.opacity = fog * 0.045 * (beat ? 1.15 : 1);
                 l.mesh.position.y = l.baseY + Math.sin(time * 0.12 + l.layer) * 0.08;
