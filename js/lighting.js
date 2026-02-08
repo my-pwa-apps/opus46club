@@ -366,16 +366,16 @@ export class LightingSystem {
 
     /* ── Gobo Projectors ──────────────────────────────────────────── */
     _buildGoboProjectors() {
-        // Each gobo has: a fixture position on the truss, a floor target, and a
-        // volumetric beam cone from fixture to floor.  The floor pattern is the
-        // gobo image; the cone is the visible light beam in haze.
+        // Each gobo has: a fixture on the truss (fix) projecting at an angle to a
+        // floor target (floor).  A volumetric beam cone connects them.
+        // Fixture and floor are OFFSET in X/Z to create realistic angled beams.
         const configs = [
-            { floor: [-4, 0.005, -4],  fix: [-4, 4.15, -4],  s: 3.2, type: 'breakup' },
-            { floor: [ 4, 0.005, -4],  fix: [ 4, 4.15, -4],  s: 3.2, type: 'star' },
-            { floor: [ 0, 0.005,  2],  fix: [ 0, 4.15,  2],  s: 4.0, type: 'ring' },
-            { floor: [-5, 0.005,  5],  fix: [-5, 4.15,  5],  s: 2.8, type: 'breakup' },
-            { floor: [ 5, 0.005,  5],  fix: [ 5, 4.15,  5],  s: 2.8, type: 'star' },
-            { floor: [ 0, 0.005, -8],  fix: [ 0, 4.15, -8],  s: 3.5, type: 'ring' },
+            { floor: [-4, 0.005, -4],  fix: [-2,   4.15, -2],   s: 3.2, type: 'breakup' },
+            { floor: [ 4, 0.005, -4],  fix: [ 2,   4.15, -2],   s: 3.2, type: 'star' },
+            { floor: [ 0, 0.005,  2],  fix: [ 1.5, 4.15,  0],   s: 4.0, type: 'ring' },
+            { floor: [-5, 0.005,  5],  fix: [-3,   4.15,  3],   s: 2.8, type: 'breakup' },
+            { floor: [ 5, 0.005,  5],  fix: [ 3,   4.15,  3],   s: 2.8, type: 'star' },
+            { floor: [ 0, 0.005, -8],  fix: [ 1.5, 4.15, -5.5], s: 3.5, type: 'ring' },
         ];
 
         const baseMat = () => new THREE.MeshBasicMaterial({
@@ -394,10 +394,12 @@ export class LightingSystem {
 
         for (let gi = 0; gi < configs.length; gi++) {
             const c = configs[gi];
+            const fixV = new THREE.Vector3(...c.fix);
+            const floorV = new THREE.Vector3(...c.floor);
 
             // ── Floor pattern group ──
             const g = new THREE.Group();
-            g.position.set(...c.floor);
+            g.position.copy(floorV);
 
             if (c.type === 'breakup') {
                 for (let d = 0; d < 18; d++) {
@@ -434,10 +436,16 @@ export class LightingSystem {
 
             // ── Fixture housing on truss ──
             const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.1, 8), housingMat);
-            housing.position.set(c.fix[0], c.fix[1], c.fix[2]);
+            housing.position.copy(fixV);
             this.group.add(housing);
 
-            // Lens glow
+            // ── Beam direction & orientation ──
+            // Axis from fixture DOWN to floor target
+            const beamDir = new THREE.Vector3().subVectors(floorV, fixV);
+            const beamLen = beamDir.length();
+            const beamDirN = beamDir.clone().normalize();
+
+            // Lens glow – oriented perpendicular to beam direction
             const lens = new THREE.Mesh(
                 new THREE.CircleGeometry(0.055, 12),
                 new THREE.MeshBasicMaterial({
@@ -445,20 +453,40 @@ export class LightingSystem {
                     depthWrite: false, blending: THREE.AdditiveBlending,
                 })
             );
-            lens.position.set(c.fix[0], c.fix[1] - 0.06, c.fix[2]);
-            lens.rotation.x = Math.PI / 2;
+            // Position lens slightly below fixture along beam axis
+            lens.position.copy(fixV).addScaledVector(beamDirN, 0.06);
+            // Orient lens face perpendicular to beam
+            lens.lookAt(lens.position.clone().add(beamDirN));
             this.group.add(lens);
 
             // ── Volumetric beam cone from fixture to floor ──
-            // Height = fixture Y - floor Y
-            const beamH = c.fix[1] - c.floor[1];
-            // Top radius (at fixture lens) is small; bottom radius matches gobo spread
             const topR = 0.06;
-            const botR = c.s * 0.5;  // half the gobo spread diameter
-            const coneGeo = new THREE.CylinderGeometry(topR, botR, beamH, 16, 1, true);
+            const botR = c.s * 0.5;
+
+            // When the beam is angled, the far edge of the cone must still
+            // reach the floor plane.  Extend the cone past the floor by botR
+            // so the entire disc fully intersects the surface (the floor
+            // geometry naturally hides anything below y ≈ 0).
+            const extension = botR;
+            const totalLen = beamLen + extension;
+
+            const coneGeo = new THREE.CylinderGeometry(topR, botR, totalLen, 16, 1, true);
             const cone = new THREE.Mesh(coneGeo, beamMat());
-            // Position at midpoint between fixture and floor
-            cone.position.set(c.fix[0], c.floor[1] + beamH / 2, c.fix[2]);
+
+            // Position: start at fixture, extend totalLen along beamDir.
+            // CylinderGeometry +Y = top (narrow), -Y = bottom (wide).
+            // We'll place the center of the cylinder at the midpoint of the
+            // extended beam, then rotate so +Y aligns with fixture→floor UP.
+            const extEnd = floorV.clone().addScaledVector(beamDirN, extension);
+            cone.position.lerpVectors(fixV, extEnd, 0.5);
+
+            // Rotate the cylinder so its local Y axis aligns with the beam axis.
+            // Default cylinder Y = (0,1,0).  We want it along -beamDirN (narrow
+            // end toward fixture = +Y toward fixture direction).
+            const upAxis = new THREE.Vector3(0, 1, 0);
+            const fixtureDir = beamDirN.clone().negate(); // floor→fixture
+            const quat = new THREE.Quaternion().setFromUnitVectors(upAxis, fixtureDir);
+            cone.quaternion.copy(quat);
             cone.renderOrder = 10;
             this.group.add(cone);
 
