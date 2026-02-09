@@ -11,14 +11,14 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { FilmPass } from 'three/addons/postprocessing/FilmPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
-import { ClubGeometry } from './club-geometry.js';
-import { DJBooth } from './dj-booth.js';
-import { LightingSystem } from './lighting.js';
-import { AudioEngine } from './audio-engine.js';
-import { VJVisuals } from './vj-visuals.js';
-import { AtmosphereSystem } from './atmosphere.js';
-import { WebXRManager } from './webxr-manager.js';
-import { UIController } from './ui-controller.js';
+import { ClubGeometry } from './club-geometry.js?v=20260208b';
+import { DJBooth } from './dj-booth.js?v=20260208b';
+import { LightingSystem } from './lighting.js?v=20260208b';
+import { AudioEngine } from './audio-engine.js?v=20260208b';
+import { VJVisuals } from './vj-visuals.js?v=20260208b';
+import { AtmosphereSystem } from './atmosphere.js?v=20260208b';
+import { WebXRManager } from './webxr-manager.js?v=20260208b';
+import { UIController } from './ui-controller.js?v=20260208b';
 
 // ── Globals ──
 let renderer, scene, camera, composer, controls;

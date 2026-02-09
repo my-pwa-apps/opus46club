@@ -493,38 +493,38 @@ export class ClubGeometry {
         const screenMat = () => new THREE.MeshBasicMaterial({ color: 0x000811, side: THREE.DoubleSide });
 
         // Left side LED wall — floor-to-ceiling immersive panel
-        const left = new THREE.Mesh(new THREE.PlaneGeometry(20, 5), screenMat());
-        left.position.set(-15.94, 3.0, 0);
+        const left = new THREE.Mesh(new THREE.PlaneGeometry(20, 4.5), screenMat());
+        left.position.set(-15.85, 2.5, 0);
         left.rotation.y = Math.PI / 2;
         left.name = 'led-wall-left';
         left.userData.isScreen = true;
         left.userData.isLEDWall = true;
         this.group.add(left);
-        this._buildFrame(left, 20, 5, frameMat);
+        this._buildFrame(left, 20, 4.5, frameMat);
 
         // Right side LED wall — matching panel
-        const right = new THREE.Mesh(new THREE.PlaneGeometry(20, 5), screenMat());
-        right.position.set(15.94, 3.0, 0);
+        const right = new THREE.Mesh(new THREE.PlaneGeometry(20, 4.5), screenMat());
+        right.position.set(15.85, 2.5, 0);
         right.rotation.y = -Math.PI / 2;
         right.name = 'led-wall-right';
         right.userData.isScreen = true;
         right.userData.isLEDWall = true;
         this.group.add(right);
-        this._buildFrame(right, 20, 5, frameMat);
+        this._buildFrame(right, 20, 4.5, frameMat);
 
         // Main rear LED wall — massive panel behind DJ
-        const rearMain = new THREE.Mesh(new THREE.PlaneGeometry(16, 5), screenMat());
-        rearMain.position.set(0, 3.0, -15.94);
+        const rearMain = new THREE.Mesh(new THREE.PlaneGeometry(16, 4.5), screenMat());
+        rearMain.position.set(0, 2.5, -15.85);
         rearMain.name = 'led-wall-rear-main';
         rearMain.userData.isScreen = true;
         rearMain.userData.isLEDWall = true;
         this.group.add(rearMain);
-        this._buildFrame(rearMain, 16, 5, frameMat);
+        this._buildFrame(rearMain, 16, 4.5, frameMat);
 
         // Glow strips behind each LED panel — creates halo effect on adjacent walls
-        this._buildLEDGlow(left, 20, 5);
-        this._buildLEDGlow(right, 20, 5);
-        this._buildLEDGlow(rearMain, 16, 5);
+        this._buildLEDGlow(left, 20, 4.5);
+        this._buildLEDGlow(right, 20, 4.5);
+        this._buildLEDGlow(rearMain, 16, 4.5);
     }
 
     /** Backlight glow planes behind LED panels — simulates bright light spill */
